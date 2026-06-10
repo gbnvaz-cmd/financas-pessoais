@@ -266,7 +266,7 @@ let saveTimer    = null;
 
 // ─── GOOGLE AUTH ─────────────────────────────────────────────────────────────
 function initGoogleAuth() {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === '656025032155-c0prgo177q89196oo1oge7cg0kf6ac4t.apps.googleusercontent.com') {
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 656025032155-c0prgo177q89196oo1oge7cg0kf6ac4t.apps.googleusercontent.com) {
     showAuthError();
     return;
   }
@@ -318,34 +318,18 @@ document.getElementById('btn-signin').addEventListener('click', () => {
 
 // Detecta retorno OAuth por hash (#access_token=...)
 function checkOAuthReturn() {
-  console.log('[OAuth] hash:', window.location.hash);
-  console.log('[OAuth] href:', window.location.href);
-  const raw = window.location.hash || '';
-  if (!raw.includes('access_token')) {
-    console.log('[OAuth] Nenhum token encontrado no hash');
-    return false;
-  }
-  const params = new URLSearchParams(raw.startsWith('#') ? raw.slice(1) : raw);
-  const token = params.get('access_token');
-  const error = params.get('error');
-  console.log('[OAuth] token:', token ? 'encontrado' : 'ausente', '| error:', error);
-  if (error) { console.error('OAuth error:', error); return false; }
-  if (token) {
-    accessToken = token;
-    history.replaceState(null, '', location.pathname);
-    // Aguarda o DOM estar pronto antes de manipular elementos
-    function afterDom() {
-      console.log('[OAuth] DOM pronto, escondendo overlay e carregando Drive');
-      const overlay = document.getElementById('auth-overlay');
-      if (overlay) overlay.classList.add('hidden');
+  const hash = location.hash;
+  if (hash.includes('access_token=')) {
+    const params = new URLSearchParams(hash.slice(1));
+    const token = params.get('access_token');
+    if (token) {
+      accessToken = token;
+      // Limpa o hash da URL
+      history.replaceState(null, '', location.pathname);
+      document.getElementById('auth-overlay').classList.add('hidden');
       loadFromDrive();
+      return true;
     }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', afterDom);
-    } else {
-      afterDom();
-    }
-    return true;
   }
   return false;
 }
@@ -395,16 +379,10 @@ async function findOrCreateFile() {
 }
 
 async function loadFromDrive() {
-  console.log('[Drive] Iniciando carregamento, token:', accessToken ? 'presente' : 'ausente');
   showLoading('Carregando seus dados...');
-  // Garante overlay escondido independente do que acontecer
-  const overlay = document.getElementById('auth-overlay');
-  if (overlay) overlay.classList.add('hidden');
   try {
     driveFileId = await findOrCreateFile();
-    console.log('[Drive] fileId:', driveFileId);
     const res = await driveRequest(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
-    console.log('[Drive] status da leitura:', res.status);
     if (res.status === 200) {
       const text = await res.text();
       if (text && text.trim()) {
@@ -415,9 +393,8 @@ async function loadFromDrive() {
     setSyncStatus('ok', 'Sincronizado');
     bootApp();
   } catch (e) {
-    console.error('[Drive] Erro:', e);
-    setSyncStatus('error', 'Erro ao carregar — usando dados locais');
-    txs = JSON.parse(localStorage.getItem('fin_txs') || '[]');
+    console.error('Erro ao carregar do Drive:', e);
+    setSyncStatus('error', 'Erro ao carregar');
     bootApp();
   } finally {
     hideLoading();
@@ -672,18 +649,19 @@ document.getElementById('desc').addEventListener('keydown', e => { if (e.key==='
 document.getElementById('valor').addEventListener('keydown', e => { if (e.key==='Enter') addTx(); });
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
-// Roda imediatamente — o hash está disponível antes do DOMContentLoaded
-// mas precisamos que o DOM exista para manipular elementos
-function boot() {
-  if (!checkOAuthReturn()) {
-    document.getElementById('auth-overlay').classList.remove('hidden');
-  }
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot);
-} else {
-  boot();
+// Verifica se voltou de um redirect OAuth
+if (!checkOAuthReturn()) {
+  // Aguarda o script do Google carregar
+  window.addEventListener('load', () => {
+    if (typeof google !== 'undefined') {
+      initGoogleAuth();
+    } else {
+      // Google script não carregou, oferece modo local
+      document.getElementById('auth-overlay').classList.remove('hidden');
+      document.getElementById('btn-signin').style.display = 'none';
+      document.getElementById('auth-overlay').innerHTML += '<br><button class="btn" onclick="useLocalFallback()"><i class="ti ti-device-floppy"></i> Usar sem sincronização</button>';
+    }
+  });
 }
 </script>
 </body>
