@@ -80,12 +80,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 </head>
 <body>
 
-<div id="screen-loading" class="loading-screen">
+<div id="screen-loading" class="loading-screen" style="display:flex">
   <div class="spinner"></div>
   <p>Carregando...</p>
 </div>
 
-<div id="screen-auth" class="auth-wrap hidden">
+<div id="screen-auth" class="auth-wrap" style="display:none">
   <div class="auth-box">
     <i class="ti ti-wallet icon"></i>
     <h2>Finanças Pessoais</h2>
@@ -97,7 +97,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
   </div>
 </div>
 
-<div id="screen-app" class="hidden">
+<div id="screen-app" style="display:none">
   <div class="topbar">
     <h1><i class="ti ti-wallet"></i> Finanças Pessoais</h1>
     <div class="topbar-right">
@@ -177,9 +177,10 @@ const MONTHS   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','N
 let txs = [], chart = null;
 
 function show(id) {
-  ['screen-loading','screen-auth','screen-app'].forEach(s => {
-    document.getElementById(s).classList.toggle('hidden', s !== id);
-  });
+  document.getElementById('screen-loading').style.display = 'none';
+  document.getElementById('screen-auth').style.display    = 'none';
+  document.getElementById('screen-app').style.display     = 'none';
+  document.getElementById(id).style.display = id === 'screen-app' ? 'block' : 'flex';
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
