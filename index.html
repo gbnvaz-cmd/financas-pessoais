@@ -397,9 +397,14 @@ async function findOrCreateFile() {
 async function loadFromDrive() {
   console.log('[Drive] Iniciando carregamento, token:', accessToken ? 'presente' : 'ausente');
   showLoading('Carregando seus dados...');
+  // Garante overlay escondido independente do que acontecer
+  const overlay = document.getElementById('auth-overlay');
+  if (overlay) overlay.classList.add('hidden');
   try {
     driveFileId = await findOrCreateFile();
+    console.log('[Drive] fileId:', driveFileId);
     const res = await driveRequest(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+    console.log('[Drive] status da leitura:', res.status);
     if (res.status === 200) {
       const text = await res.text();
       if (text && text.trim()) {
@@ -410,8 +415,9 @@ async function loadFromDrive() {
     setSyncStatus('ok', 'Sincronizado');
     bootApp();
   } catch (e) {
-    console.error('Erro ao carregar do Drive:', e);
-    setSyncStatus('error', 'Erro ao carregar');
+    console.error('[Drive] Erro:', e);
+    setSyncStatus('error', 'Erro ao carregar — usando dados locais');
+    txs = JSON.parse(localStorage.getItem('fin_txs') || '[]');
     bootApp();
   } finally {
     hideLoading();
