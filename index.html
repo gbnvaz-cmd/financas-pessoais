@@ -236,8 +236,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async></script>
 
 <script>
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
@@ -266,22 +264,7 @@ let saveTimer    = null;
 
 // ─── GOOGLE AUTH ─────────────────────────────────────────────────────────────
 function initGoogleAuth() {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === '656025032155-c0prgo177q89196oo1oge7cg0kf6ac4t.apps.googleusercontent.com') {
-    showAuthError();
-    return;
-  }
-  google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: handleCredential,
-    auto_select: true,
-  });
-  // Tenta login silencioso primeiro
-  google.accounts.id.prompt(notification => {
-    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-      // Mostra overlay de login manual
-      document.getElementById('auth-overlay').classList.remove('hidden');
-    }
-  });
+  // Não utilizado — login feito via redirect direto
 }
 
 function showAuthError() {
@@ -304,7 +287,6 @@ function useLocalFallback() {
 }
 
 document.getElementById('btn-signin').addEventListener('click', () => {
-  // Redireciona para o Google OAuth2 (fluxo implícito por redirect)
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
     redirect_uri: location.origin + location.pathname,
@@ -318,20 +300,14 @@ document.getElementById('btn-signin').addEventListener('click', () => {
 
 // Detecta retorno OAuth por hash (#access_token=...)
 function checkOAuthReturn() {
-  const hash = location.hash;
-  if (hash.includes('access_token=')) {
-    const params = new URLSearchParams(hash.slice(1));
-    const token = params.get('access_token');
-    if (token) {
-      accessToken = token;
-      // Limpa o hash da URL
-      history.replaceState(null, '', location.pathname);
-      document.getElementById('auth-overlay').classList.add('hidden');
-      loadFromDrive();
-      return true;
-    }
-  }
-  return false;
+  const raw = window.location.hash || '';
+  if (!raw.includes('access_token')) return false;
+  const params = new URLSearchParams(raw.startsWith('#') ? raw.slice(1) : raw);
+  const token = params.get('access_token');
+  if (!token) return false;
+  accessToken = token;
+  history.replaceState(null, '', location.pathname);
+  return true;
 }
 
 async function handleCredential(response) {
@@ -391,13 +367,13 @@ async function loadFromDrive() {
       }
     }
     setSyncStatus('ok', 'Sincronizado');
-    bootApp();
   } catch (e) {
-    console.error('Erro ao carregar do Drive:', e);
-    setSyncStatus('error', 'Erro ao carregar');
-    bootApp();
+    console.error('[Drive] Erro:', e);
+    setSyncStatus('error', 'Erro ao carregar — usando dados locais');
+    txs = JSON.parse(localStorage.getItem('fin_txs') || '[]');
   } finally {
     hideLoading();
+    bootApp();
   }
 }
 
@@ -649,20 +625,17 @@ document.getElementById('desc').addEventListener('keydown', e => { if (e.key==='
 document.getElementById('valor').addEventListener('keydown', e => { if (e.key==='Enter') addTx(); });
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
-// Verifica se voltou de um redirect OAuth
-if (!checkOAuthReturn()) {
-  // Aguarda o script do Google carregar
-  window.addEventListener('load', () => {
-    if (typeof google !== 'undefined') {
-      initGoogleAuth();
-    } else {
-      // Google script não carregou, oferece modo local
-      document.getElementById('auth-overlay').classList.remove('hidden');
-      document.getElementById('btn-signin').style.display = 'none';
-      document.getElementById('auth-overlay').innerHTML += '<br><button class="btn" onclick="useLocalFallback()"><i class="ti ti-device-floppy"></i> Usar sem sincronização</button>';
-    }
-  });
-}
+document.addEventListener('DOMContentLoaded', () => {
+  if (checkOAuthReturn()) {
+    // Voltou do Google com token — carrega o Drive
+    const overlay = document.getElementById('auth-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    loadFromDrive();
+  } else {
+    // Sem token — mostra tela de login
+    document.getElementById('auth-overlay').classList.remove('hidden');
+  }
+});
 </script>
 </body>
 </html>
