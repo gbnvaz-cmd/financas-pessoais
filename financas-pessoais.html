@@ -243,7 +243,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 // ─── CONFIG ──────────────────────────────────────────────────────────────────
 // Você precisa criar um projeto no Google Cloud Console e colocar seu Client ID aqui.
 // Veja as instruções no arquivo README ao lado.
-const GOOGLE_CLIENT_ID = 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = '656025032155-c0prgo177q89196oo1oge7cg0kf6ac4t.apps.googleusercontent.com';
 
 const DRIVE_FILE_NAME  = 'financas-pessoais-dados.json';
 const SCOPES           = 'https://www.googleapis.com/auth/drive.appdata';
@@ -266,7 +266,7 @@ let saveTimer    = null;
 
 // ─── GOOGLE AUTH ─────────────────────────────────────────────────────────────
 function initGoogleAuth() {
-  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'SEU_CLIENT_ID_AQUI.apps.googleusercontent.com') {
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === '656025032155-c0prgo177q89196oo1oge7cg0kf6ac4t.apps.googleusercontent.com') {
     showAuthError();
     return;
   }
