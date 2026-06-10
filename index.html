@@ -198,11 +198,16 @@ let txs = [], chart = null;
 async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass  = document.getElementById('login-password').value;
-  const errEl = document.getElementById('auth-error');
-  errEl.style.display = 'none';
+  document.getElementById('auth-error').style.display = 'none';
   if (!email || !pass) { showAuthError('Preencha e-mail e senha.'); return; }
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
   if (error) { showAuthError('E-mail ou senha incorretos.'); return; }
+  if (data.session) {
+    showScreen('loading');
+    await loadTxs();
+    showScreen('app');
+    boot();
+  }
 }
 
 async function doLogout() {
