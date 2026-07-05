@@ -74,6 +74,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .hidden{display:none}
 .toast{position:fixed;bottom:16px;right:16px;background:#1a1a18;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:999}
 .toast.show{opacity:1}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f5f3;padding:1.25rem}
+.login-card{background:#fff;border:1px solid #eeecea;border-radius:14px;padding:2rem 1.75rem;width:100%;max-width:340px;box-shadow:0 2px 16px rgba(0,0,0,.04)}
+.login-card h1{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;margin-bottom:1.5rem;color:#1a1a18}
+.login-card h1 i{font-size:20px;color:#1D9E75}
+.login-card .fg{margin-bottom:12px}
+.login-card .btn.primary{width:100%;justify-content:center;padding:10px;margin-top:6px}
+.login-err{font-size:12px;color:#D85A30;margin-top:8px;min-height:14px}
+.login-loading{text-align:center;padding:3rem;color:#b4b2a9;font-size:13px}
+.logout-btn{background:none;border:none;cursor:pointer;color:#888780;padding:5px 7px;border-radius:6px;font-size:16px;display:flex;align-items:center}
+.logout-btn:hover{background:#f5f5f3;color:#D85A30}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .banco-item{border-radius:10px;background:#fafaf8;border:1px solid #f0eeea;margin-bottom:6px;overflow:hidden}
 .banco-row{display:flex;align-items:center;gap:10px;padding:12px 14px}
@@ -217,6 +227,20 @@ td.saldo-v.neg{color:#D85A30}
 </style>
 </head>
 <body>
+
+<div class="login-screen" id="login-screen">
+  <div class="login-card">
+    <h1><i class="ti ti-wallet"></i> Finanças Pessoais</h1>
+    <div class="fg"><label>E-mail</label><input type="email" id="login-email" autocomplete="username"></div>
+    <div class="fg"><label>Senha</label><input type="password" id="login-senha" autocomplete="current-password"></div>
+    <button class="btn primary" id="login-btn" onclick="doLogin()"><i class="ti ti-login-2"></i> Entrar</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<div id="app-root" class="hidden">
+<div id="app-loading" class="login-loading">Carregando...</div>
+<div id="app-body" class="hidden">
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:8px">
     <button class="hamburger-btn" onclick="toggleDrawer(true)" aria-label="Abrir menu"><i class="ti ti-menu-2"></i></button>
@@ -225,6 +249,7 @@ td.saldo-v.neg{color:#D85A30}
   <div class="topbar-right">
     <span class="sync hidden" id="sync"><i class="ti ti-cloud"></i> <span id="sync-txt"></span></span>
     <span class="month-lbl" id="month-lbl"></span>
+    <button class="logout-btn" onclick="doLogout()" title="Sair"><i class="ti ti-logout-2"></i></button>
   </div>
 </div>
 
@@ -452,6 +477,8 @@ td.saldo-v.neg{color:#D85A30}
 </div>
 
 <div class="toast" id="toast"></div>
+</div>
+</div>
 
 <script>
 const SUPA_URL='https://yyxbbotabyyrjqoyqdbj.supabase.co';
@@ -926,8 +953,26 @@ function renderCategorias(){
   el.querySelectorAll('.btn-del-cat').forEach(btn=>btn.addEventListener('click',async()=>{const id=Number(btn.dataset.id);if(!confirm('Remover esta categoria?'))return;setSyncStatus('saving','Removendo...');const {error}=await db.from('categorias').delete().eq('id',id);if(error){setSyncStatus('err','Erro');return;}setSyncStatus('ok','Salvo');categorias=categorias.filter(c=>c.id!==id);if(editingCatId===id)editingCatId=null;updCats();renderCategorias();showToast('Categoria removida.');}));
 }
 
-// ─── BOOT ─────────────────────────────────────────────────────────────────────
-(async()=>{
+// ─── AUTENTICAÇÃO ───────────────────────────────────────────────────────────────
+let appBooted=false;
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const senha=document.getElementById('login-senha').value;
+  const err=document.getElementById('login-err'),btn=document.getElementById('login-btn');
+  err.textContent='';
+  if(!email||!senha){err.textContent='Informe e-mail e senha.';return;}
+  btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2"></i> Entrando...';
+  const {error}=await db.auth.signInWithPassword({email,password:senha});
+  btn.disabled=false;btn.innerHTML='<i class="ti ti-login-2"></i> Entrar';
+  if(error){err.textContent='E-mail ou senha inválidos.';return;}
+  // onAuthStateChange cuida do resto
+}
+async function doLogout(){
+  if(!confirm('Deseja sair?'))return;
+  await db.auth.signOut();
+}
+async function bootApp(){
+  if(appBooted)return;appBooted=true;
   await Promise.all([loadTxs(),loadBancos(),loadCategorias(),loadTransfs(),loadOrcamentos()]);
   document.getElementById('month-lbl').textContent=new Date().toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
   document.getElementById('transf-data').value=today();
@@ -935,6 +980,33 @@ function renderCategorias(){
   document.getElementById('desc').addEventListener('keydown',e=>{if(e.key==='Enter')addTx();});
   document.getElementById('banco-nome').addEventListener('keydown',e=>{if(e.key==='Enter')addBanco();});
   document.getElementById('cat-nome').addEventListener('keydown',e=>{if(e.key==='Enter')addCategoria();});
+  document.getElementById('app-loading').classList.add('hidden');
+  document.getElementById('app-body').classList.remove('hidden');
+}
+function showLogin(){
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('app-root').classList.add('hidden');
+  document.getElementById('login-email').value='';
+  document.getElementById('login-senha').value='';
+  document.getElementById('login-err').textContent='';
+  appBooted=false;
+  document.getElementById('app-loading').classList.remove('hidden');
+  document.getElementById('app-body').classList.add('hidden');
+}
+function showApp(){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app-root').classList.remove('hidden');
+  bootApp();
+}
+document.getElementById('login-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+db.auth.onAuthStateChange((event,session)=>{
+  if(session)showApp();else showLogin();
+});
+(async()=>{
+  const {data:{session}}=await db.auth.getSession();
+  if(session)showApp();else showLogin();
 })();
 </script>
 </body>
